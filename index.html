@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>もぐらたたきゲーム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --page-bg: #fdf6e3;
+        --ink: #3a2c18;
+        --ink-soft: #7a6a52;
+        --panel: #fffdf7;
+        --panel-line: #e7d9bd;
+        --accent: #e4572e;
+        --accent-dark: #c2431f;
+        --good: #1d9e57;
+        --bad: #d93636;
+        --gold: #b8860b;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page-bg: #1d1a14;
+          --ink: #f3ead8;
+          --ink-soft: #b8ab90;
+          --panel: #2b2619;
+          --panel-line: #4a4230;
+          --accent: #ff7a4d;
+          --accent-dark: #e4572e;
+          color-scheme: dark;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+        background: var(--page-bg);
+        color: var(--ink);
+        -webkit-tap-highlight-color: transparent;
+      }
+      main {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 14px 14px 28px;
+      }
+
+      /* ---------- score bar ---------- */
+      .scorebar {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+        margin-bottom: 12px;
+      }
+      .stat {
+        background: var(--panel);
+        border: 2px solid var(--panel-line);
+        border-radius: 14px;
+        padding: 8px 14px;
+        text-align: center;
+      }
+      .stat.score { flex: 1.2; }
+      .stat.time { flex: 1; }
+      .stat .label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--ink-soft);
+        letter-spacing: .06em;
+      }
+      .stat .value {
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .value small { font-size: 16px; font-weight: 700; }
+      .stat.time .value.danger { color: var(--bad); }
+      .timebar {
+        height: 8px;
+        border-radius: 99px;
+        background: var(--panel-line);
+        overflow: hidden;
+        margin-top: 5px;
+      }
+      .timebar > i {
+        display: block;
+        height: 100%;
+        width: 100%;
+        background: #58b368;
+        border-radius: 99px;
+        transition: width .2s linear;
+      }
+      .timebar > i.danger { background: var(--bad); }
+      @keyframes scorePop {
+        0% { transform: scale(1); }
+        40% { transform: scale(1.18); }
+        100% { transform: scale(1); }
+      }
+      .stat.score .value.pop { animation: scorePop .25s ease; }
+      .stat.score .value.pop-bad { animation: scorePop .25s ease; color: var(--bad); }
+
+      /* ---------- legend ---------- */
+      .legend {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .legend .item {
+        background: var(--panel);
+        border: 2px solid var(--panel-line);
+        border-radius: 14px;
+        padding: 8px 4px 7px;
+        text-align: center;
+      }
+      .legend .item img {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        object-position: top center;
+        border-radius: 50%;
+        border: 2px solid var(--panel-line);
+        background: #fff;
+        display: block;
+        margin: 0 auto 4px;
+      }
+      .legend .name { font-size: 13px; font-weight: 800; line-height: 1.2; }
+      .legend .pts { font-size: 15px; font-weight: 800; }
+      .legend .pts.plus { color: var(--good); }
+      .legend .pts.minus { color: var(--bad); }
+      .legend .item.girl { border-color: #f0b7c8; }
+      @media (prefers-color-scheme: dark) {
+        .legend .item.girl { border-color: #6e4256; }
+      }
+
+      /* ---------- board ---------- */
+      .board-wrap { position: relative; }
+      .board {
+        background: linear-gradient(180deg, #aee3f5 0%, #cdeedd 30%, #7ec850 30.2%, #69b83f 100%);
+        border: 3px solid #4c8a2d;
+        border-radius: 20px;
+        padding: 16px 14px 20px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px 10px;
+        box-shadow: 0 6px 0 #3f7423;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .hole {
+        position: relative;
+        aspect-ratio: 1 / 1.04;
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+        touch-action: manipulation;
+        font-family: inherit;
+      }
+      .hole:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 16px; }
+      .pit-window {
+        position: absolute;
+        left: 50%;
+        bottom: 12%;
+        transform: translateX(-50%);
+        width: 86%;
+        height: 84%;
+        overflow: hidden;
+        border-radius: 50% 50% 46% 46% / 58% 58% 40% 40%;
+      }
+      .char {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        width: 96%;
+        aspect-ratio: 1 / 1;
+        transform: translate(-50%, 108%);
+        transition: transform .13s ease-out;
+        pointer-events: none;
+      }
+      .char .disc {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: #fff;
+        border: 3px solid #43301d;
+        overflow: hidden;
+      }
+      .char img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+        -webkit-user-drag: none;
+      }
+      .hole.up .char { transform: translate(-50%, 6%); }
+      .hole.up .char { transition: transform .16s cubic-bezier(.34, 1.56, .64, 1); }
+      .hole.hit .char .disc { animation: bonk .3s ease; }
+      @keyframes bonk {
+        0% { transform: scale(1, 1); }
+        35% { transform: scale(1.18, .72); }
+        70% { transform: scale(.94, 1.08); }
+        100% { transform: scale(1, 1); }
+      }
+      .mound {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        width: 104%;
+        height: 30%;
+        background: radial-gradient(ellipse at 50% 18%, #a9743f 0%, #8a5a2b 55%, #6f4520 100%);
+        border-radius: 50%;
+        box-shadow: inset 0 -6px 0 rgba(0,0,0,.18);
+        pointer-events: none;
+      }
+      .mound::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 12%;
+        transform: translateX(-50%);
+        width: 62%;
+        height: 46%;
+        background: #38220f;
+        border-radius: 50%;
+      }
+      .float-score {
+        position: absolute;
+        left: 50%;
+        top: -6px;
+        transform: translateX(-50%);
+        font-size: clamp(20px, 6vw, 30px);
+        font-weight: 800;
+        pointer-events: none;
+        z-index: 5;
+        white-space: nowrap;
+        animation: floatUp .8s ease-out forwards;
+        text-shadow: 0 2px 0 #fff, 0 0 6px #fff;
+      }
+      .float-score.plus { color: var(--good); }
+      .float-score.big { color: var(--gold); }
+      .float-score.minus { color: var(--bad); }
+      @keyframes floatUp {
+        0% { opacity: 0; transform: translate(-50%, 12px) scale(.7); }
+        18% { opacity: 1; transform: translate(-50%, 0) scale(1.15); }
+        100% { opacity: 0; transform: translate(-50%, -46px) scale(1); }
+      }
+      .stars {
+        position: absolute;
+        left: 50%;
+        top: 8%;
+        transform: translateX(-50%);
+        pointer-events: none;
+        z-index: 4;
+      }
+      .stars i {
+        position: absolute;
+        left: 0; top: 0;
+        width: 12px; height: 12px;
+        background: #ffd93b;
+        clip-path: polygon(50% 0, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0 50%, 37% 37%);
+        animation: starOut .45s ease-out forwards;
+      }
+      @keyframes starOut {
+        from { transform: translate(0,0) scale(.4); opacity: 1; }
+        to { transform: translate(var(--dx), var(--dy)) scale(1.1); opacity: 0; }
+      }
+
+      /* ---------- gate / panels ---------- */
+      .gate { margin-bottom: 12px; }
+      .gate[hidden] { display: none; }
+      .gate .panel-card { max-width: 100%; }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(30, 24, 10, .45);
+        border-radius: 20px;
+        z-index: 10;
+      }
+      .overlay[hidden] { display: none; }
+      .panel-card {
+        background: var(--panel);
+        border: 3px solid var(--panel-line);
+        border-radius: 18px;
+        padding: 20px 20px 18px;
+        text-align: center;
+        max-width: 340px;
+        width: 100%;
+        box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      }
+      .panel-card h1 {
+        font-size: 26px;
+        font-weight: 800;
+        margin: 0 0 8px;
+      }
+      .panel-card h2 {
+        font-size: 22px;
+        font-weight: 800;
+        margin: 0 0 6px;
+      }
+      .panel-card p {
+        font-size: 14.5px;
+        line-height: 1.65;
+        margin: 0 0 14px;
+        color: var(--ink);
+      }
+      .panel-card p .hl-good { color: var(--good); font-weight: 800; }
+      .panel-card p .hl-bad { color: var(--bad); font-weight: 800; }
+      .final-score {
+        font-size: 52px;
+        font-weight: 800;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+      }
+      .final-score small { font-size: 20px; }
+      .breakdown {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin: 10px 0 16px;
+        flex-wrap: wrap;
+      }
+      .breakdown figure { margin: 0; text-align: center; }
+      .breakdown img {
+        width: 44px; height: 44px;
+        object-fit: cover;
+        object-position: top center;
+        border-radius: 50%;
+        border: 2px solid var(--panel-line);
+        background: #fff;
+        display: block;
+        margin: 0 auto 2px;
+      }
+      .breakdown figcaption { font-size: 12.5px; font-weight: 700; }
+      .btn {
+        font-family: inherit;
+        font-size: 20px;
+        font-weight: 800;
+        color: #fff;
+        background: var(--accent);
+        border: none;
+        border-radius: 99px;
+        padding: 13px 38px;
+        cursor: pointer;
+        box-shadow: 0 5px 0 var(--accent-dark);
+        touch-action: manipulation;
+      }
+      .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--accent-dark); }
+      .countdown {
+        font-size: 84px;
+        font-weight: 800;
+        color: #fff;
+        text-shadow: 0 4px 0 rgba(0,0,0,.3);
+        animation: countZoom .9s ease forwards;
+      }
+      @keyframes countZoom {
+        0% { transform: scale(.4); opacity: 0; }
+        30% { transform: scale(1.15); opacity: 1; }
+        80% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(1); opacity: .9; }
+      }
+      .overlay.count { background: rgba(30, 24, 10, .25); }
+
+      .hint {
+        text-align: center;
+        font-size: 13.5px;
+        color: var(--ink-soft);
+        margin: 12px 4px 0;
+        line-height: 1.6;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .char, .hole.up .char { transition: none; }
+        .float-score, .stars i, .countdown, .hole.hit .char .disc { animation-duration: .01s; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <!-- score bar -->
+      <div class="scorebar" aria-live="polite">
+        <div class="stat score">
+          <div class="label">スコア</div>
+          <div class="value" id="scoreValue">0<small> 点</small></div>
+        </div>
+        <div class="stat time">
+          <div class="label">のこり時間</div>
+          <div class="value" id="timeValue">60<small> 秒</small></div>
+          <div class="timebar"><i id="timeBarFill"></i></div>
+        </div>
+      </div>
+
+      <!-- legend -->
+      <div class="legend" aria-label="キャラクターと点数">
+        <div class="item">
+          <img src="img1.webp" alt="ターザン（原始人）" />
+          <div class="name">ターザン</div>
+          <div class="pts plus">+5点</div>
+        </div>
+        <div class="item">
+          <img src="img2.webp" alt="ロボコン（ロボット）" />
+          <div class="name">ロボコン</div>
+          <div class="pts plus">+10点</div>
+        </div>
+        <div class="item">
+          <img src="img3.webp" alt="剣道" />
+          <div class="name">剣道</div>
+          <div class="pts plus">+30点</div>
+        </div>
+        <div class="item girl">
+          <img src="img4.webp" alt="頭に15の文字をつけた女の子" />
+          <div class="name">女の子</div>
+          <div class="pts minus">−15点</div>
+        </div>
+      </div>
+
+      <!-- start gate -->
+      <div class="gate" id="startGate">
+        <div class="panel-card">
+          <h1>もぐらたたき</h1>
+          <p>
+            穴から顔を出す3人をタップしてたたこう！<br />
+            剣道は<span class="hl-good">+30点</span>でめったに出ない大物。<br />
+            頭に「15」の女の子は<span class="hl-bad">たたくと−15点</span>。見逃してね。<br />
+            制限時間は60秒です。
+          </p>
+          <button class="btn" id="startBtn" type="button">スタート</button>
+        </div>
+      </div>
+
+      <!-- board -->
+      <div class="board-wrap">
+        <div class="board" id="board" role="group" aria-label="もぐらたたきの穴（3かける3）"></div>
+
+        <!-- countdown -->
+        <div class="overlay count" id="countOverlay" hidden>
+          <div class="countdown" id="countText">3</div>
+        </div>
+
+        <!-- result panel -->
+        <div class="overlay" id="resultOverlay" hidden>
+          <div class="panel-card">
+            <h2>おつかれさま！</h2>
+            <div class="final-score"><span id="finalScore">0</span><small> 点</small></div>
+            <div class="breakdown" id="breakdown"></div>
+            <button class="btn" id="retryBtn" type="button">もう一度あそぶ</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint">出てきたら、引っ込む前にすばやくタップ（クリック）！<br />剣道（+30点）は出る時間が短いので、見かけたらすぐたたこう。</p>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var CHARS = {
+          tarzan:  { name: "ターザン", src: "img1.webp",  alt: "ターザン", points: 5,   weight: 38 },
+          robocon: { name: "ロボコン", src: "img2.webp", alt: "ロボコン", points: 10,  weight: 32 },
+          kendo:   { name: "剣道",     src: "img3.webp",   alt: "剣道",     points: 30,  weight: 15 },
+          girl:    { name: "女の子",   src: "img4.webp",  alt: "女の子",   points: -15, weight: 15 }
+        };
+        var KEYS = Object.keys(CHARS);
+        var TOTAL_WEIGHT = KEYS.reduce(function (s, k) { return s + CHARS[k].weight; }, 0);
+        var GAME_SECONDS = 60;
+
+        var board = document.getElementById("board");
+        var scoreEl = document.getElementById("scoreValue");
+        var timeEl = document.getElementById("timeValue");
+        var timeFill = document.getElementById("timeBarFill");
+        var startGate = document.getElementById("startGate");
+        var countOverlay = document.getElementById("countOverlay");
+        var countText = document.getElementById("countText");
+        var resultOverlay = document.getElementById("resultOverlay");
+        var finalScoreEl = document.getElementById("finalScore");
+        var breakdownEl = document.getElementById("breakdown");
+
+        var holes = [];
+        for (var i = 0; i < 9; i++) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "hole";
+          btn.setAttribute("aria-label", "穴 " + (i + 1));
+          btn.innerHTML =
+            '<span class="pit-window"><span class="char"><span class="disc">' +
+            '<img src="img1.webp" alt="" draggable="false" />' +
+            "</span></span></span>" +
+            '<span class="mound"></span>';
+          board.appendChild(btn);
+          holes.push({
+            el: btn,
+            img: btn.querySelector("img"),
+            charKey: null,
+            hideTimer: null,
+            hitDone: false
+          });
+        }
+
+        var score = 0;
+        var hits = { tarzan: 0, robocon: 0, kendo: 0, girl: 0 };
+        var playing = false;
+        var timeLeft = GAME_SECONDS;
+        var tickTimer = null;
+        var spawnTimer = null;
+        var elapsed = 0;
+
+        /* ---------- sound (tiny synth) ---------- */
+        var audioCtx = null;
+        function ensureAudio() {
+          if (!audioCtx) {
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) audioCtx = new AC();
+          }
+          if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+        }
+        function beep(freqFrom, freqTo, dur, type) {
+          if (!audioCtx) return;
+          try {
+            var t = audioCtx.currentTime;
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = type || "square";
+            osc.frequency.setValueAtTime(freqFrom, t);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(freqTo, 1), t + dur);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(t); osc.stop(t + dur);
+          } catch (e) { /* sound is optional */ }
+        }
+        function hitSound(points) {
+          if (points < 0) beep(300, 90, 0.28, "sawtooth");
+          else if (points >= 30) { beep(660, 990, 0.12, "square"); setTimeout(function () { beep(880, 1320, 0.16, "square"); }, 90); }
+          else beep(520, 240, 0.12, "square");
+        }
+
+        /* ---------- helpers ---------- */
+        function pickChar() {
+          var r = Math.random() * TOTAL_WEIGHT;
+          for (var i = 0; i < KEYS.length; i++) {
+            r -= CHARS[KEYS[i]].weight;
+            if (r <= 0) return KEYS[i];
+          }
+          return "tarzan";
+        }
+        function upDuration(key) {
+          // gets shorter as the game speeds up; kendo is always brief
+          var base = key === "kendo" ? 780 : 1050;
+          var shrink = Math.min(elapsed * 9, 320);
+          return Math.max(base - shrink, key === "kendo" ? 520 : 620) + Math.random() * 220;
+        }
+        function spawnInterval() {
+          var base = 880 - Math.min(elapsed * 10, 330);
+          return Math.max(base, 480) + Math.random() * 260;
+        }
+        function setScore(v) {
+          score = v;
+          scoreEl.innerHTML = score + "<small> 点</small>";
+        }
+        function floatText(hole, text, cls) {
+          var span = document.createElement("span");
+          span.className = "float-score " + cls;
+          span.textContent = text;
+          hole.el.appendChild(span);
+          setTimeout(function () { span.remove(); }, 850);
+        }
+        function starBurst(hole) {
+          var wrap = document.createElement("span");
+          wrap.className = "stars";
+          for (var i = 0; i < 6; i++) {
+            var s = document.createElement("i");
+            var ang = (Math.PI * 2 * i) / 6 + Math.random() * 0.5;
+            var dist = 30 + Math.random() * 22;
+            s.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+            s.style.setProperty("--dy", Math.sin(ang) * dist - 12 + "px");
+            wrap.appendChild(s);
+          }
+          hole.el.appendChild(wrap);
+          setTimeout(function () { wrap.remove(); }, 500);
+        }
+        function hideHole(hole) {
+          hole.charKey = null;
+          hole.hitDone = false;
+          hole.el.classList.remove("up", "hit");
+          if (hole.hideTimer) { clearTimeout(hole.hideTimer); hole.hideTimer = null; }
+        }
+
+        /* ---------- spawning ---------- */
+        function spawnOne() {
+          var free = holes.filter(function (h) { return !h.charKey; });
+          if (!free.length) return;
+          var hole = free[Math.floor(Math.random() * free.length)];
+          var key = pickChar();
+          hole.charKey = key;
+          hole.hitDone = false;
+          hole.img.src = CHARS[key].src;
+          hole.img.alt = CHARS[key].alt;
+          hole.el.classList.remove("hit");
+          // force reflow so the slide-up transition runs
+          void hole.el.offsetWidth;
+          hole.el.classList.add("up");
+          hole.hideTimer = setTimeout(function () { hideHole(hole); }, upDuration(key));
+        }
+        function spawnLoop() {
+          if (!playing) return;
+          spawnOne();
+          // late in the game, sometimes pop two at once
+          if (elapsed > 30 && Math.random() < 0.4) spawnOne();
+          spawnTimer = setTimeout(spawnLoop, spawnInterval());
+        }
+
+        /* ---------- hitting ---------- */
+        holes.forEach(function (hole) {
+          hole.el.addEventListener("pointerdown", function (ev) {
+            ev.preventDefault();
+            if (!playing || !hole.charKey || hole.hitDone) return;
+            hole.hitDone = true;
+            var key = hole.charKey;
+            var pts = CHARS[key].points;
+            hits[key]++;
+            if (pts < 0) {
+              setScore(Math.max(0, score + pts));
+              scoreEl.classList.remove("pop"); void scoreEl.offsetWidth;
+              scoreEl.classList.add("pop-bad");
+              floatText(hole, "−15点", "minus");
+            } else {
+              setScore(score + pts);
+              scoreEl.classList.remove("pop-bad"); void scoreEl.offsetWidth;
+              scoreEl.classList.add("pop");
+              floatText(hole, "+" + pts + "点", pts >= 30 ? "big" : "plus");
+              starBurst(hole);
+            }
+            hitSound(pts);
+            hole.el.classList.add("hit");
+            if (hole.hideTimer) clearTimeout(hole.hideTimer);
+            hole.hideTimer = setTimeout(function () { hideHole(hole); }, 260);
+          });
+        });
+
+        /* ---------- game flow ---------- */
+        function updateTime() {
+          timeEl.innerHTML = Math.ceil(timeLeft) + "<small> 秒</small>";
+          var pct = Math.max(0, (timeLeft / GAME_SECONDS) * 100);
+          timeFill.style.width = pct + "%";
+          var danger = timeLeft <= 10;
+          timeEl.classList.toggle("danger", danger);
+          timeFill.classList.toggle("danger", danger);
+        }
+        function endGame() {
+          playing = false;
+          if (tickTimer) clearInterval(tickTimer);
+          if (spawnTimer) clearTimeout(spawnTimer);
+          holes.forEach(hideHole);
+          timeLeft = 0; updateTime();
+          finalScoreEl.textContent = score;
+          breakdownEl.innerHTML = KEYS.map(function (k) {
+            return "<figure><img src=\"" + CHARS[k].src + "\" alt=\"" + CHARS[k].name + "\" />" +
+              "<figcaption>" + CHARS[k].name + " ×" + hits[k] + "</figcaption></figure>";
+          }).join("");
+          resultOverlay.hidden = false;
+          beep(523, 523, 0.12, "square");
+          setTimeout(function () { beep(659, 659, 0.12, "square"); }, 140);
+          setTimeout(function () { beep(784, 784, 0.22, "square"); }, 280);
+        }
+        function runGame() {
+          setScore(0);
+          hits = { tarzan: 0, robocon: 0, kendo: 0, girl: 0 };
+          elapsed = 0;
+          timeLeft = GAME_SECONDS;
+          updateTime();
+          holes.forEach(hideHole);
+          playing = true;
+          var startedAt = Date.now();
+          tickTimer = setInterval(function () {
+            elapsed = (Date.now() - startedAt) / 1000;
+            timeLeft = GAME_SECONDS - elapsed;
+            if (timeLeft <= 0) { endGame(); return; }
+            updateTime();
+          }, 100);
+          spawnLoop();
+          spawnOne();
+        }
+        function startWithCountdown() {
+          ensureAudio();
+          startGate.hidden = true;
+          resultOverlay.hidden = true;
+          countOverlay.hidden = false;
+          var n = 3;
+          countText.textContent = n;
+          var cd = setInterval(function () {
+            n--;
+            if (n <= 0) {
+              clearInterval(cd);
+              countOverlay.hidden = true;
+              runGame();
+            } else {
+              countText.textContent = n;
+              countText.style.animation = "none";
+              void countText.offsetWidth;
+              countText.style.animation = "";
+            }
+          }, 900);
+        }
+        document.getElementById("startBtn").addEventListener("click", startWithCountdown);
+        document.getElementById("retryBtn").addEventListener("click", startWithCountdown);
+
+        updateTime();
+      })();
+    </script>
+  </body>
+</html>
